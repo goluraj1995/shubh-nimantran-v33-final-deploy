@@ -84,21 +84,22 @@ jobs:
           mkdir -p extracted_source
           unzip -q "$ZIP" -d extracted_source
 
-          echo "Checking package.json..."
-          test -s extracted_source/package.json
+          SOURCE_DIR="extracted_source/shubh-nimantran-v33-final"
 
-          echo "Checking package-lock.json..."
-          test -s extracted_source/package-lock.json
+          echo "Checking source files..."
+          test -s "$SOURCE_DIR/package.json"
+          test -s "$SOURCE_DIR/package-lock.json"
+          echo "SOURCE FILES VERIFIED"
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: extracted_source/package.json
+          cache-dependency-path: extracted_source/shubh-nimantran-v33-final/package-lock.json
 
       - name: Install dependencies and build
-        working-directory: extracted_source
+        working-directory: extracted_source/shubh-nimantran-v33-final
         run: |
           set -euo pipefail
           npm ci --no-fund --no-audit
@@ -112,7 +113,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: extracted_source/dist
+          path: extracted_source/shubh-nimantran-v33-final/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
