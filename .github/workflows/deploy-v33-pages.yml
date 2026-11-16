@@ -1,0 +1,113 @@
+
+name: Deploy Shubh Nimantran v33 FINAL - Isolated
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify and reconstruct six BIN parts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARTS=(
+            "parts/shubh_nimantran_v33_FINAL_part01.bin"
+            "parts/shubh_nimantran_v33_FINAL_part02.bin"
+            "parts/shubh_nimantran_v33_FINAL_part03.bin"
+            "parts/shubh_nimantran_v33_FINAL_part04.bin"
+            "parts/shubh_nimantran_v33_FINAL_part05.bin"
+            "parts/shubh_nimantran_v33_FINAL_part06.bin"
+          )
+
+          echo "Checking all six uploaded parts..."
+
+          for part in "${PARTS[@]}"; do
+            if [ ! -s "$part" ]; then
+              echo "ERROR: Missing or empty part: $part"
+              exit 1
+            fi
+            echo "FOUND: $part"
+            stat -c%s "$part"
+          done
+
+          echo "Reconstructing verified source ZIP..."
+
+          cat "${PARTS[@]}" > shubh_nimantran_v33_FINAL_VERIFIED_RELEASE_SOURCE_20261114.zip
+
+          ZIP="shubh_nimantran_v33_FINAL_VERIFIED_RELEASE_SOURCE_20261114.zip"
+
+          EXPECTED_SIZE=84750841
+          EXPECTED_SHA="96663c326025d92f22168542f7f4e540bdf592759b7206e977e7f3aa38299b52"
+
+          ACTUAL_SIZE=$(stat -c%s "$ZIP")
+          ACTUAL_SHA=$(sha256sum "$ZIP" | awk '{print $1}')
+
+          echo "ZIP SIZE: $ACTUAL_SIZE"
+          echo "ZIP SHA256: $ACTUAL_SHA"
+
+          if [ "$ACTUAL_SIZE" -ne "$EXPECTED_SIZE" ]; then
+            echo "ERROR: ZIP size mismatch"
+            exit 1
+          fi
+
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "ERROR: ZIP SHA-256 mismatch"
+            exit 1
+          fi
+
+          echo "VERIFIED: Exact expected ZIP"
+
+          echo "Testing ZIP integrity..."
+          unzip -t "$ZIP"
+
+          echo "Extracting source..."
+          mkdir -p extracted_source
+          unzip -q "$ZIP" -d extracted_source
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extracted_source/package-lock.json
+
+      - name: Install dependencies and build
+        working-directory: extracted_source
+        run: |
+          set -euo pipefail
+          npm ci --no-fund --no-audit
+          npm run build
+          test -d dist
+          echo "BUILD SUCCESSFUL"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: extracted_source/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
