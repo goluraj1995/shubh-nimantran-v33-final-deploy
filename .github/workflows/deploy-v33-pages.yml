@@ -84,12 +84,18 @@ jobs:
           mkdir -p extracted_source
           unzip -q "$ZIP" -d extracted_source
 
+          echo "Checking package.json..."
+          test -s extracted_source/package.json
+
+          echo "Checking package-lock.json..."
+          test -s extracted_source/package-lock.json
+
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: extracted_source/package-lock.json
+          cache-dependency-path: extracted_source/package.json
 
       - name: Install dependencies and build
         working-directory: extracted_source
